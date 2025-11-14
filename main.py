@@ -1,6 +1,11 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import List
+
+from database import create_document, get_documents
+from schemas import Contact
 
 app = FastAPI()
 
@@ -63,6 +68,28 @@ def test_database():
     response["database_name"] = "✅ Set" if os.getenv("DATABASE_NAME") else "❌ Not Set"
     
     return response
+
+# Contact form endpoints
+
+@app.post("/api/contact")
+def create_contact(contact: Contact):
+    try:
+        inserted_id = create_document("contact", contact)
+        return {"success": True, "id": inserted_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/contacts")
+def list_contacts(limit: int = 50):
+    try:
+        docs = get_documents("contact", limit=limit)
+        # Convert ObjectId to str if present
+        for d in docs:
+            if "_id" in d:
+                d["_id"] = str(d["_id"]) 
+        return {"items": docs}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":
